@@ -10,6 +10,12 @@ http://:8888 {
     root * /srv/ksb-maju/public
     encode zstd gzip br
 
+    # Optimasi Kecepatan: Caching Static Assets
+    @static {
+        path *.ico *.css *.js *.gif *.webp *.avif *.jpg *.jpeg *.png *.svg *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
     header {
         X-Frame-Options "DENY"
         Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'"
@@ -35,6 +41,12 @@ http://:8989 {
     root * /srv/be-ppid-pembantu/public
     encode zstd gzip br
 
+    # Optimasi Kecepatan: Caching Static Assets
+    @static {
+        path *.ico *.css *.js *.gif *.webp *.avif *.jpg *.jpeg *.png *.svg *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
     header {
         X-Frame-Options "DENY"
         Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'"
@@ -59,6 +71,12 @@ http://:8989 {
 http://:9090 {
     root * /srv/e-office/public
     encode zstd gzip br
+
+    # Optimasi Kecepatan: Caching Static Assets
+    @static {
+        path *.ico *.css *.js *.gif *.webp *.avif *.jpg *.jpeg *.png *.svg *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
 
     header {
         X-Frame-Options "DENY"

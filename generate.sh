@@ -27,14 +27,18 @@ fi
 declare -a NAMES=()
 declare -a PORTS=()
 declare -a PATHS=()
+declare -a AUTH_USERS=()
+declare -a AUTH_PASSES=()
 
-while IFS=: read -r name port path; do
+while IFS=: read -r name port path auth_user auth_pass; do
     # Skip komentar dan baris kosong
     [[ -z "$name" || "$name" =~ ^[[:space:]]*# ]] && continue
     # Trim whitespace
     name=$(echo "$name" | xargs)
     port=$(echo "$port" | xargs)
     path=$(echo "$path" | xargs)
+    auth_user=$(echo "${auth_user:-}" | xargs)
+    auth_pass=$(echo "${auth_pass:-}" | xargs)
 
     # Validasi
     if [[ -z "$name" || -z "$port" || -z "$path" ]]; then
@@ -49,12 +53,15 @@ while IFS=: read -r name port path; do
     fi
 
     if [[ ! -d "${SCRIPT_DIR}/html/${path}/public" ]]; then
-        echo -e "${YELLOW}WARNING: Directory html/${path}/public tidak ditemukan untuk project '${name}'${NC}"
+        echo -e "${YELLOW}WARNING: Directory html/${path}/public tidak ditemukan untuk project '${name}'. Membuat direktori...${NC}"
+        mkdir -p "${SCRIPT_DIR}/html/${path}/public"
     fi
 
     NAMES+=("$name")
     PORTS+=("$port")
     PATHS+=("$path")
+    AUTH_USERS+=("$auth_user")
+    AUTH_PASSES+=("$auth_pass")
 done < "$CONFIG_FILE"
 
 if [[ ${#NAMES[@]} -eq 0 ]]; then
@@ -104,6 +111,12 @@ http://:${PORTS[$i]} {
     root * /srv/${NAMES[$i]}/public
     encode zstd gzip br
 
+    # Optimasi Kecepatan: Caching Static Assets
+    @static {
+        path *.ico *.css *.js *.gif *.webp *.avif *.jpg *.jpeg *.png *.svg *.woff *.woff2
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
     header {
         X-Frame-Options "DENY"
         Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'"
@@ -119,6 +132,26 @@ http://:${PORTS[$i]} {
     file_server
 
 CADDY_SITE_HEADER
+
+    # Otorisasi Tersendiri: Basic Auth
+    if [[ -n "${AUTH_USERS[$i]}" && -n "${AUTH_PASSES[$i]}" ]]; then
+        echo -e "  ${YELLOW}→${NC} Generating hash for auth ${NAMES[$i]}..."
+        # Generate bcrypt hash
+        HASH=$(python3 -c "import crypt; print(crypt.crypt('${AUTH_PASSES[$i]}', '\$2a\$10\$' + '1234567890123456789012'))" 2>/dev/null || true)
+        if [[ -z "$HASH" ]]; then
+            HASH=$(podman run --rm docker.io/caddy:alpine caddy hash-password --plaintext "${AUTH_PASSES[$i]}" 2>/dev/null)
+        fi
+        
+        cat >> "$CADDYFILE" << CADDY_AUTH
+    basicauth / {
+        ${AUTH_USERS[$i]} ${HASH}
+    }
+CADDY_AUTH
+    fi
+
+    # Isolasi project dengan open_basedir di .user.ini
+    echo "open_basedir = /srv/${NAMES[$i]}/:/tmp/" > "${SCRIPT_DIR}/html/${PATHS[$i]}/public/.user.ini"
+
     # Use quoted heredoc for the regex part to prevent backslash interpretation
     cat >> "$CADDYFILE" << 'CADDY_SITE_FOOTER'
     @hidden {
@@ -142,7 +175,8 @@ PORTS_SECTION=""
 for i in "${!NAMES[@]}"; do
     PORTS_SECTION+="      - \"${PORTS[$i]}:${PORTS[$i]}\"   # ${NAMES[$i]}\n"
 done
-PORTS_SECTION+="      - \"9003:9003\"   # xdebug"
+# Remove or comment out Xdebug for production
+# PORTS_SECTION+="      - \"9003:9003\"   # xdebug"
 
 # Build volumes section
 VOLUMES_SECTION=""
@@ -178,6 +212,15 @@ $(echo -e "$VOLUMES_SECTION")
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
     networks:
       - backend
       - redis
@@ -204,11 +247,14 @@ $(echo -e "$VOLUMES_SECTION")
       MYSQL_ROOT_PASSWORD: passwordfrankenphp!
       MYSQL_USER: user
       MYSQL_PASSWORD: passwordfrankenphp@
-    ports:
-      - "3306:3306"
+    # Do not expose internal database port to host in production
+    # ports:
+    #   - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     networks:
       - database
     deploy:
@@ -225,11 +271,14 @@ $(echo -e "$VOLUMES_SECTION")
       --appendonly yes
       --replica-read-only no
       --requirepass yourredispasswordfrankenphp
-    ports:
-      - "127.0.0.1:6377:6379"
+    # Do not expose internal redis port to host in production
+    # ports:
+    #   - "127.0.0.1:6377:6379"
     volumes:
       - redis_data:/data
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
     networks:
       - redis
     deploy:
@@ -242,8 +291,11 @@ $(echo -e "$VOLUMES_SECTION")
     container_name: phpmyadmin-frankenphp
     image: docker.io/library/phpmyadmin:latest
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    # Exposing phpmyadmin in production can be dangerous, it's mapped to localhost only
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     environment:
       PMA_HOST: mysql
       PMA_USER: root
