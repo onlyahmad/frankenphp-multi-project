@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/projects.conf"
 CADDYFILE="${SCRIPT_DIR}/Caddyfile"
 COMPOSEFILE="${SCRIPT_DIR}/podman-compose.yml"
+DOCKERCOMPOSEFILE="${SCRIPT_DIR}/docker-compose.yml"
 
 # Warna output
 RED='\033[0;31m'
@@ -321,7 +322,10 @@ volumes:
   caddy_config:
 COMPOSE_EOF
 
+cp "$COMPOSEFILE" "$DOCKERCOMPOSEFILE"
+
 echo -e "  ${GREEN}✓${NC} podman-compose.yml berhasil di-generate"
+echo -e "  ${GREEN}✓${NC} docker-compose.yml berhasil di-generate"
 
 # =============================================================
 # Summary
@@ -335,6 +339,7 @@ for i in "${!NAMES[@]}"; do
 done
 echo -e "  ${YELLOW}→${NC} phpMyAdmin: ${GREEN}http://localhost:8080${NC}"
 echo ""
-echo -e "${YELLOW}Jalankan:${NC}"
+echo -e "${YELLOW}Jalankan salah satu perintah berikut:${NC}"
 echo "  podman-compose -f podman-compose.yml up -d --force-recreate app"
+echo "  docker compose up -d --force-recreate app"
 echo ""
