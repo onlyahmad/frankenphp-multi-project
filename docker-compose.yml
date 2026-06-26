@@ -1,0 +1,106 @@
+version: "3.8"
+
+services:
+  app:
+    container_name: frankenphp
+    build:
+      context: .
+      dockerfile: .docker/Dockerfile
+    ports:
+      - "80:80"
+      - "9003:9003"
+    volumes:
+      - ./html/ksb-maju:/app:rw,delegated
+      - ./.docker/php/php.ini:/usr/local/etc/php/php.ini:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro # <- Tambahkan ini
+      - caddy_data:/data
+      - caddy_config:/config
+
+    restart: unless-stopped
+    networks:
+      - backend
+      - redis
+      - database
+    environment:
+      DISABLE_FUNCTIONS: "exec,passthru,shell_exec,system,proc_open,popen,curl_multi_exec,parse_ini_file,show_source"
+    depends_on:
+      #      - mysql
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "0.5"
+
+  mysql:
+    container_name: mysql-frankenphp
+    image: mysql:8.0.36
+    command:
+      - --sort_buffer_size=67108864
+    environment:
+      MYSQL_ROOT_PASSWORD: passwordfrankenphp!
+      MYSQL_USER: user
+      MYSQL_PASSWORD: passwordfrankenphp@
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - database
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "0.5"
+
+  redis:
+    container_name: redis-frankenphp
+    image: redis:latest
+    command: >
+      redis-server
+      --appendonly yes
+      --replica-read-only no
+      --requirepass yourredispasswordfrankenphp
+    ports:
+      - "127.0.0.1:6377:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.25"
+
+  phpmyadmin:
+    container_name: phpmyadmin-frankenphp
+    image: phpmyadmin/phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: passwordfrankenphp!
+      UPLOAD_LIMIT: 500M
+    depends_on:
+      - mysql
+    networks:
+      - database
+
+networks:
+  backend:
+    driver: bridge
+  redis:
+    driver: bridge
+  database:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

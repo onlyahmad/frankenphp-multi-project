@@ -1,0 +1,110 @@
+services:
+  app:
+    container_name: frankenphp
+    image: docker.io/1510520140/franken-php8.2
+    ports:
+      - "8888:8888"   # ksb-maju
+      - "8989:8989"   # be-ppid-pembantu
+      - "9090:9090"   # e-office
+      - "9003:9003"   # xdebug
+    volumes:
+      # Project directories (auto-generated)
+      - ./html/ksb-maju:/srv/ksb-maju:rw,z
+      - ./html/be-ppid-pembantu/html:/srv/be-ppid-pembantu:rw,z
+      - ./html/e-office:/srv/e-office:rw,z
+      # Config files
+      - ./.docker/php/php.ini:/usr/local/etc/php/php.ini:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Caddy persistent data
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    networks:
+      - backend
+      - redis
+      - database
+
+    environment:
+      SERVER_NAME: "http://:8888, http://:8989, http://:9090"
+
+    depends_on:
+      - redis
+
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "0.5"
+
+  mysql:
+    container_name: mysql-frankenphp
+    image: docker.io/library/mysql:8.0.36
+    command:
+      - --sort_buffer_size=67108864
+    environment:
+      MYSQL_ROOT_PASSWORD: passwordfrankenphp!
+      MYSQL_USER: user
+      MYSQL_PASSWORD: passwordfrankenphp@
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - database
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+          cpus: "0.5"
+
+  redis:
+    container_name: redis-frankenphp
+    image: docker.io/library/redis:latest
+    command: >
+      redis-server
+      --appendonly yes
+      --replica-read-only no
+      --requirepass yourredispasswordfrankenphp
+    ports:
+      - "127.0.0.1:6377:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    networks:
+      - redis
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.25"
+
+  phpmyadmin:
+    container_name: phpmyadmin-frankenphp
+    image: docker.io/library/phpmyadmin:latest
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: root
+      PMA_PASSWORD: passwordfrankenphp!
+      UPLOAD_LIMIT: 500M
+    depends_on:
+      - mysql
+    networks:
+      - database
+
+networks:
+  backend:
+    driver: bridge
+  redis:
+    driver: bridge
+  database:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

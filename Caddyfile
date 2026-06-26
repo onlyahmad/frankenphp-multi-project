@@ -1,0 +1,82 @@
+{
+    frankenphp
+    order php_server before file_server
+    auto_https off
+    admin off
+}
+
+# ksb-maju -> port 8888
+http://:8888 {
+    root * /srv/ksb-maju/public
+    encode zstd gzip br
+
+    header {
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'"
+        X-Content-Type-Options "nosniff"
+        Cache-Control "no-store, no-cache, must-revalidate"
+        Pragma "no-cache"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -X-Powered-By
+    }
+
+    php_server
+    file_server
+
+    @hidden {
+        path_regexp hidden ^/(\.|_.*|.*\.(env|git|log|sql|sqlite|json|yml|lock|htaccess|htpasswd|phar)$)
+    }
+    respond @hidden 404
+}
+
+# be-ppid-pembantu -> port 8989
+http://:8989 {
+    root * /srv/be-ppid-pembantu/public
+    encode zstd gzip br
+
+    header {
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'"
+        X-Content-Type-Options "nosniff"
+        Cache-Control "no-store, no-cache, must-revalidate"
+        Pragma "no-cache"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -X-Powered-By
+    }
+
+    php_server
+    file_server
+
+    @hidden {
+        path_regexp hidden ^/(\.|_.*|.*\.(env|git|log|sql|sqlite|json|yml|lock|htaccess|htpasswd|phar)$)
+    }
+    respond @hidden 404
+}
+
+# e-office -> port 9090
+http://:9090 {
+    root * /srv/e-office/public
+    encode zstd gzip br
+
+    header {
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'"
+        X-Content-Type-Options "nosniff"
+        Cache-Control "no-store, no-cache, must-revalidate"
+        Pragma "no-cache"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        -X-Powered-By
+    }
+
+    php_server
+    file_server
+
+    @hidden {
+        path_regexp hidden ^/(\.|_.*|.*\.(env|git|log|sql|sqlite|json|yml|lock|htaccess|htpasswd|phar)$)
+    }
+    respond @hidden 404
+}
+
