@@ -106,6 +106,14 @@ cat > "$CADDYFILE" << 'CADDY_GLOBAL'
 CADDY_GLOBAL
 
 for i in "${!NAMES[@]}"; do
+    # Check if Octane is installed in composer.json
+    USE_OCTANE=""
+    COMPOSER_FILE="${SCRIPT_DIR}/html/${PATHS[$i]}/composer.json"
+    if [ -f "$COMPOSER_FILE" ] && grep -q '"laravel/octane"' "$COMPOSER_FILE"; then
+        USE_OCTANE="yes"
+        echo -e "  ${GREEN}✓${NC} Octane terdeteksi pada ${NAMES[$i]}, mode worker diaktifkan."
+    fi
+
     cat >> "$CADDYFILE" << CADDY_SITE_HEADER
 # ${NAMES[$i]} -> port ${PORTS[$i]}
 http://:${PORTS[$i]} {
@@ -129,10 +137,25 @@ http://:${PORTS[$i]} {
         -X-Powered-By
     }
 
+CADDY_SITE_HEADER
+
+    if [[ "$USE_OCTANE" == "yes" ]]; then
+        cat >> "$CADDYFILE" << CADDY_OCTANE
+    php_server {
+        env OCTANE_ENABLED 1
+        worker /srv/${NAMES[$i]}/public/index.php
+    }
+CADDY_OCTANE
+    else
+        cat >> "$CADDYFILE" << CADDY_NORMAL
     php_server
+CADDY_NORMAL
+    fi
+
+    cat >> "$CADDYFILE" << CADDY_SITE_MID
     file_server
 
-CADDY_SITE_HEADER
+CADDY_SITE_MID
 
     # Otorisasi Tersendiri: Basic Auth
     if [[ -n "${AUTH_USERS[$i]}" && -n "${AUTH_PASSES[$i]}" ]]; then
